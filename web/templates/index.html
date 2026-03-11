@@ -6,57 +6,83 @@
   <title>{{.AppName}}</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body>
+<body data-room-code="{{.RoomCode}}">
   <main class="page">
-    <section class="hero">
+    <section class="hero panel">
       <div>
-        <p class="eyebrow">miha.vovengo.com · absurd cyberpunk village lab</p>
+        <p class="eyebrow">absurd cyberpunk village realtime guessing hut</p>
         <h1>{{.AppName}}</h1>
-        <p class="lead">Рисуешь каракулю, докидываешь текстовый промпт, а сервис пытается превратить это в сияющую кибердеревню с неоном, грязью, проводами и шаманским угаром.</p>
+        <p class="lead">Один рисует дичь уровня «дед кибер-пасечник на дроновом тракторе», остальные глядят в реальном времени и угадывают в чате. Комната живёт по ссылке, время тикает, а победителя подтверждает сам рисовальщик.</p>
       </div>
       <div class="status-card">
-        <div><strong>Провайдер:</strong> {{.Provider}}</div>
         <div><strong>Домен:</strong> {{.Domain}}</div>
         <div><strong>База:</strong> {{.PublicURL}}</div>
+        <div><strong>Формат:</strong> room-by-link · live canvas · chat</div>
       </div>
     </section>
 
-    <section class="grid">
+    <section class="lobby-grid">
       <div class="panel">
-        <h2>Набросок</h2>
-        <canvas id="sketch" width="768" height="768"></canvas>
+        <h2>Создать избу</h2>
+        <label><span>Как тебя звать</span><input id="create-name" maxlength="24" placeholder="Михалыч"></label>
+        <button class="primary" id="create-room">Поднять комнату</button>
+      </div>
+      <div class="panel">
+        <h2>Зайти по коду</h2>
+        <label><span>Код комнаты</span><input id="join-code" maxlength="10" placeholder="AB12CD" value="{{.RoomCode}}"></label>
+        <label><span>Как тебя звать</span><input id="join-name" maxlength="24" placeholder="Рыжий шаман"></label>
+        <button id="join-room">Ввалиться в катку</button>
+      </div>
+    </section>
+
+    <section id="game" class="game-grid hidden">
+      <div class="panel board-panel">
+        <div class="board-head">
+          <div>
+            <div class="eyebrow">комната <span id="room-code">—</span></div>
+            <h2 id="round-title">Ждём народ</h2>
+          </div>
+          <div class="timer" id="timer">--:--</div>
+        </div>
+        <canvas id="board" width="900" height="600"></canvas>
         <div class="tools">
           <label>Цвет <input type="color" id="color" value="#00ffd0"></label>
-          <label>Кисть <input type="range" id="size" min="1" max="32" value="6"></label>
-          <button id="clear" type="button">Очистить</button>
+          <label>Кисть <input type="range" id="size" min="1" max="24" value="6"></label>
+          <button id="clear-local" type="button">Очистить локально</button>
+          <button class="primary" id="start-round" type="button">Новый раунд</button>
+        </div>
+        <div class="phrase-card">
+          <div><strong>Тема для угадывания:</strong> <span id="phrase-masked">—</span></div>
+          <div id="phrase-secret-wrap" class="hidden"><strong>Твоя фраза:</strong> <span id="phrase-secret"></span></div>
         </div>
       </div>
 
-      <div class="panel">
-        <h2>Шаманский пульт</h2>
-        <form id="render-form">
-          <label>
-            <span>Что дорисовать/зашаманить</span>
-            <textarea name="prompt" id="prompt" rows="8" placeholder="Например: дед на кибер-тракторе, антенны из берёзы, неоновые гуси, летающий самовар-дрон..."></textarea>
-          </label>
-          <label>
-            <span>Референс-картинка (необязательно)</span>
-            <input type="file" name="reference" id="reference" accept="image/*">
-          </label>
-          <button class="primary" type="submit">Зашаманить картинку</button>
-        </form>
-        <p class="hint">Сейчас UI уже рабочий. В mock-режиме результат — стилизованная заглушка с наложением твоего скетча. Для настоящей генерации нужен API-провайдер.</p>
-      </div>
-    </section>
+      <div class="side-stack">
+        <section class="panel">
+          <div class="room-actions">
+            <div>
+              <h2>Игроки</h2>
+              <p class="muted">Ссылку можно кидать товарищам без регистрации.</p>
+            </div>
+            <button id="copy-link" type="button">Скопировать ссылку</button>
+          </div>
+          <ul id="players" class="players"></ul>
+          <div id="winner-box" class="winner-box hidden"></div>
+        </section>
 
-    <section class="panel result-panel">
-      <div class="result-head">
-        <h2>Результат</h2>
-        <div id="job-meta"></div>
+        <section class="panel chat-panel">
+          <h2>Чат-угадайка</h2>
+          <div id="chat" class="chat"></div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" placeholder="Пиши догадки сюда...">
+            <button class="primary" type="submit">Отправить</button>
+          </form>
+          <div id="confirm-box" class="confirm-box hidden">
+            <label><span>Кого подтверждаем победителем</span><select id="confirm-player"></select></label>
+            <button id="confirm-guess" type="button">Подтвердить угадайку</button>
+          </div>
+        </section>
       </div>
-      <div id="result-empty" class="empty">Тут появится итоговая картинка.</div>
-      <img id="result-image" alt="Результат генерации" hidden>
-      <pre id="result-json" hidden></pre>
     </section>
   </main>
   <script src="/static/app.js"></script>

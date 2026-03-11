@@ -2,40 +2,32 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	AppName               string
-	Domain                string
-	HTTPAddr              string
-	PublicBaseURL         string
-	GeneratorProvider     string
-	OpenAIBaseURL         string
-	OpenAIAPIKey          string
-	OpenAIModel           string
-	OpenAIImageSize       string
-	StorageDir            string
-	MaxUploadBytes        int64
-	SystemPrompt          string
+	AppName         string
+	Domain          string
+	HTTPAddr        string
+	PublicBaseURL   string
+	MaxBodyBytes    int64
+	RoundDuration   int
+	RoomCodeLength  int
+	MaxChatMessages int
 }
 
 func FromEnv() Config {
-	cfg := Config{
-		AppName:           env("APP_NAME", "Мишаня шаманит"),
-		Domain:            env("APP_DOMAIN", "miha.vovengo.com"),
-		HTTPAddr:          env("HTTP_ADDR", ":8080"),
-		PublicBaseURL:     env("PUBLIC_BASE_URL", "http://localhost:8080"),
-		GeneratorProvider: strings.ToLower(env("GEN_PROVIDER", "mock")),
-		OpenAIBaseURL:     env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-		OpenAIAPIKey:      env("OPENAI_API_KEY", ""),
-		OpenAIModel:       env("OPENAI_IMAGE_MODEL", "gpt-image-1"),
-		OpenAIImageSize:   env("OPENAI_IMAGE_SIZE", "1024x1024"),
-		StorageDir:        env("STORAGE_DIR", "data/jobs"),
-		MaxUploadBytes:    12 << 20,
-		SystemPrompt: env("SYSTEM_PROMPT", "Absurd cyberpunk village scene, neon mud, rustic techno-magic, keep the user's sketch composition and subjects recognizable, enhance details, cinematic lighting, playful but not grotesque."),
+	return Config{
+		AppName:         env("APP_NAME", "Мишаня шаманит"),
+		Domain:          env("APP_DOMAIN", "miha.vovengo.com"),
+		HTTPAddr:        env("HTTP_ADDR", ":8080"),
+		PublicBaseURL:   env("PUBLIC_BASE_URL", "http://localhost:8080"),
+		MaxBodyBytes:    int64(envInt("MAX_BODY_BYTES", 1<<20)),
+		RoundDuration:   envInt("ROUND_DURATION_SECONDS", 90),
+		RoomCodeLength:  envInt("ROOM_CODE_LENGTH", 6),
+		MaxChatMessages: envInt("MAX_CHAT_MESSAGES", 80),
 	}
-	return cfg
 }
 
 func env(key, fallback string) string {
@@ -43,4 +35,16 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

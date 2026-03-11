@@ -12,7 +12,8 @@ COPY --from=builder /out/server /app/server
 COPY --from=builder /app/web /app/web
 EXPOSE 8080
 ENV HTTP_ADDR=:8080 \
-    STORAGE_DIR=/app/data/jobs \
     PUBLIC_BASE_URL=http://localhost:8080 \
-    GEN_PROVIDER=mock
+    ROUND_DURATION_SECONDS=90 \
+    ROOM_CODE_LENGTH=6 \
+    MAX_CHAT_MESSAGES=80
 CMD ["/app/server"]

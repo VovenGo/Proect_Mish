@@ -1,12 +1,13 @@
 :root {
   color-scheme: dark;
   --bg: #090b12;
-  --panel: rgba(15, 19, 32, 0.92);
-  --line: rgba(89, 244, 214, 0.25);
+  --panel: rgba(13, 18, 30, 0.95);
+  --line: rgba(0, 255, 208, 0.22);
   --text: #edf7ff;
   --muted: #8fa7bb;
   --accent: #00ffd0;
   --accent2: #ff2ea6;
+  --warn: #ffd166;
 }
 * { box-sizing: border-box; }
 body {
@@ -14,63 +15,51 @@ body {
   font-family: Inter, system-ui, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(255, 46, 166, 0.25), transparent 25%),
-    radial-gradient(circle at top right, rgba(0, 255, 208, 0.15), transparent 30%),
+    radial-gradient(circle at top left, rgba(255, 46, 166, 0.2), transparent 25%),
+    radial-gradient(circle at top right, rgba(0, 255, 208, 0.16), transparent 30%),
     linear-gradient(180deg, #05060a, #111522 60%, #08090d);
 }
-.page { max-width: 1360px; margin: 0 auto; padding: 32px; }
-.hero, .grid { display: grid; gap: 24px; }
-.hero { grid-template-columns: 2fr 1fr; align-items: start; }
-.grid { grid-template-columns: 1.25fr 0.9fr; margin-top: 24px; }
+.page { max-width: 1460px; margin: 0 auto; padding: 24px; }
 .panel, .status-card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 24px;
   padding: 20px;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 40px rgba(0,0,0,0.25);
 }
-.eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: 0.14em; font-size: 12px; }
+.hero { display:grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items:start; }
+.lobby-grid, .game-grid { display:grid; gap: 24px; margin-top: 24px; }
+.lobby-grid { grid-template-columns: 1fr 1fr; }
+.game-grid { grid-template-columns: 1.4fr 0.9fr; }
+.side-stack { display:grid; gap:24px; }
+.eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .14em; font-size: 12px; }
+.lead, .muted { color: var(--muted); }
 h1, h2 { margin: 0 0 12px; }
-.lead, .hint, .empty { color: var(--muted); }
-canvas {
-  width: 100%;
-  height: auto;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: #10111a;
-  touch-action: none;
+label { display:grid; gap:8px; margin-top:12px; color: var(--muted); }
+input, button, select {
+  width:100%; border-radius:16px; border:1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.03); color:var(--text); padding:14px 16px;
 }
-.tools, .result-head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
-label { display: grid; gap: 8px; color: var(--muted); }
-textarea, input[type="file"], button {
-  width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.03);
-  color: var(--text);
-  padding: 14px 16px;
+button { cursor:pointer; }
+button.primary { background: linear-gradient(90deg, var(--accent), #70ffd6); color:#04110d; font-weight:700; }
+.hidden { display:none !important; }
+.board-head, .tools, .room-actions { display:flex; gap:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+#board {
+  width:100%; height:auto; margin-top:16px; border-radius:20px; border:1px solid rgba(255,255,255,.08);
+  background:#10111a; touch-action:none;
 }
-button { cursor: pointer; }
-button.primary {
-  margin-top: 18px;
-  font-weight: 700;
-  color: #04110d;
-  background: linear-gradient(90deg, var(--accent), #70ffd6);
-}
-#result-image {
-  width: min(100%, 860px);
-  display: block;
-  border-radius: 20px;
-  margin-top: 20px;
-}
-pre {
-  margin-top: 16px;
-  padding: 16px;
-  overflow: auto;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.03);
-}
-@media (max-width: 960px) {
-  .hero, .grid { grid-template-columns: 1fr; }
-  .page { padding: 18px; }
+.timer { font-size: 32px; font-weight: 800; color: var(--warn); }
+.phrase-card, .winner-box { margin-top: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); }
+.players, .chat { list-style:none; margin:0; padding:0; }
+.players { display:grid; gap:10px; }
+.players li, .chat-message { border-radius: 16px; padding: 12px 14px; background: rgba(255,255,255,.03); }
+.players li.active { border:1px solid var(--accent); }
+.chat { max-height: 420px; overflow:auto; display:grid; gap:10px; }
+.chat-message.system { border-left: 3px solid var(--accent2); }
+.chat-message.guess { border-left: 3px solid var(--warn); }
+.chat-message .meta { color: var(--muted); font-size:12px; margin-bottom:4px; }
+.chat-form, .confirm-box { display:grid; gap:12px; margin-top:16px; }
+@media (max-width: 980px) {
+  .hero, .lobby-grid, .game-grid { grid-template-columns: 1fr; }
+  .page { padding: 16px; }
 }

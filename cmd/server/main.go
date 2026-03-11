@@ -9,16 +9,13 @@ import (
 	"time"
 
 	"github.com/vovengo/miha-shamanit/internal/config"
-	"github.com/vovengo/miha-shamanit/internal/gen"
 	"github.com/vovengo/miha-shamanit/internal/httpx"
 	"github.com/vovengo/miha-shamanit/internal/service"
 )
 
 func main() {
 	cfg := config.FromEnv()
-
-	generator := gen.NewFromConfig(cfg)
-	app := service.New(cfg, generator)
+	app := service.New(cfg, nil)
 	handler, err := httpx.NewHandler(cfg, app)
 	if err != nil {
 		log.Fatalf("build handler: %v", err)

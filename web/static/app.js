@@ -1,86 +1,287 @@
-const canvas = document.getElementById('sketch');
-const ctx = canvas.getContext('2d');
-const color = document.getElementById('color');
-const size = document.getElementById('size');
-const clearBtn = document.getElementById('clear');
-const form = document.getElementById('render-form');
-const resultImage = document.getElementById('result-image');
-const resultEmpty = document.getElementById('result-empty');
-const resultJSON = document.getElementById('result-json');
-const jobMeta = document.getElementById('job-meta');
+const state = {
+  me: null,
+  room: null,
+  eventSource: null,
+  drawing: false,
+  currentPoints: [],
+  postedStrokeHash: '',
+};
 
-ctx.fillStyle = '#10111a';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+const els = {
+  createName: document.getElementById('create-name'),
+  createRoom: document.getElementById('create-room'),
+  joinCode: document.getElementById('join-code'),
+  joinName: document.getElementById('join-name'),
+  joinRoom: document.getElementById('join-room'),
+  game: document.getElementById('game'),
+  roomCode: document.getElementById('room-code'),
+  roundTitle: document.getElementById('round-title'),
+  timer: document.getElementById('timer'),
+  board: document.getElementById('board'),
+  color: document.getElementById('color'),
+  size: document.getElementById('size'),
+  clearLocal: document.getElementById('clear-local'),
+  startRound: document.getElementById('start-round'),
+  phraseMasked: document.getElementById('phrase-masked'),
+  phraseSecretWrap: document.getElementById('phrase-secret-wrap'),
+  phraseSecret: document.getElementById('phrase-secret'),
+  players: document.getElementById('players'),
+  winnerBox: document.getElementById('winner-box'),
+  copyLink: document.getElementById('copy-link'),
+  chat: document.getElementById('chat'),
+  chatForm: document.getElementById('chat-form'),
+  chatInput: document.getElementById('chat-input'),
+  confirmBox: document.getElementById('confirm-box'),
+  confirmPlayer: document.getElementById('confirm-player'),
+  confirmGuess: document.getElementById('confirm-guess'),
+};
+
+const ctx = els.board.getContext('2d');
 ctx.lineCap = 'round';
 ctx.lineJoin = 'round';
 
-let drawing = false;
-
-function position(e) {
-  const rect = canvas.getBoundingClientRect();
-  const point = e.touches ? e.touches[0] : e;
-  return {
-    x: (point.clientX - rect.left) * (canvas.width / rect.width),
-    y: (point.clientY - rect.top) * (canvas.height / rect.height)
-  };
-}
-
-function start(e) {
-  drawing = true;
-  const p = position(e);
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  e.preventDefault();
-}
-
-function move(e) {
-  if (!drawing) return;
-  const p = position(e);
-  ctx.strokeStyle = color.value;
-  ctx.lineWidth = Number(size.value);
-  ctx.lineTo(p.x, p.y);
-  ctx.stroke();
-  e.preventDefault();
-}
-
-function stop() {
-  drawing = false;
-}
-
-['mousedown', 'touchstart'].forEach(ev => canvas.addEventListener(ev, start, {passive: false}));
-['mousemove', 'touchmove'].forEach(ev => canvas.addEventListener(ev, move, {passive: false}));
-['mouseup', 'mouseleave', 'touchend'].forEach(ev => canvas.addEventListener(ev, stop));
-
-clearBtn.addEventListener('click', () => {
+function initBoard() {
   ctx.fillStyle = '#10111a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-});
+  ctx.fillRect(0, 0, els.board.width, els.board.height);
+}
 
-form.addEventListener('submit', async (e) => {
+function api(path, body) {
+  return fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(async res => {
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  });
+}
+
+function saveSession() {
+  if (state.me && state.room) {
+    localStorage.setItem(`mish-room-${state.room.code}`, JSON.stringify({ player: state.me }));
+  }
+}
+
+function loadSession(code) {
+  const raw = localStorage.getItem(`mish-room-${code}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function createRoom() {
+  const name = els.createName.value.trim();
+  const out = await api('/api/rooms', { name });
+  enterRoom(out.room, out.player, true);
+}
+
+async function joinRoom() {
+  const code = els.joinCode.value.trim().toUpperCase();
+  const existing = loadSession(code);
+  if (!els.joinName.value.trim() && existing?.player) {
+    state.me = existing.player;
+    const room = await fetch(`/api/rooms/${code}?playerId=${state.me.id}`).then(r => r.json());
+    enterRoom(room, state.me, false);
+    return;
+  }
+  const out = await api('/api/rooms/join', { code, name: els.joinName.value.trim() });
+  enterRoom(out.room, out.player, false);
+}
+
+function enterRoom(room, player, pushHistory) {
+  state.room = room;
+  state.me = player;
+  saveSession();
+  if (pushHistory) history.pushState({}, '', `/room/${room.code}`);
+  els.game.classList.remove('hidden');
+  connectEvents();
+  render(room);
+}
+
+function connectEvents() {
+  if (state.eventSource) state.eventSource.close();
+  state.eventSource = new EventSource(`/api/rooms/${state.room.code}/events?playerId=${state.me.id}`);
+  state.eventSource.addEventListener('room', (event) => {
+    const room = JSON.parse(event.data);
+    state.room = room;
+    saveSession();
+    render(room);
+  });
+}
+
+function render(room) {
+  els.roomCode.textContent = room.code;
+  els.roundTitle.textContent = room.round.status === 'active'
+    ? `Раунд ${room.round.number}: рисует ${room.round.drawerName}`
+    : room.round.status === 'guessed'
+      ? `Раунд ${room.round.number} окончен — угадал ${room.round.winnerName}`
+      : room.round.status === 'timeout'
+        ? `Раунд ${room.round.number} сгорел по таймеру`
+        : 'Ждём старт нового шаманства';
+
+  els.phraseMasked.textContent = room.round.phraseMasked || '—';
+  const amDrawer = room.round.drawerId === state.me.id || room.players.find(p => p.id === state.me.id)?.role === 'drawer';
+  els.phraseSecretWrap.classList.toggle('hidden', !amDrawer || !room.round.phraseForDrawer);
+  els.phraseSecret.textContent = room.round.phraseForDrawer || '';
+  els.startRound.disabled = !amDrawer || room.players.length < 2 || room.round.status === 'active';
+
+  renderPlayers(room, amDrawer);
+  renderChat(room);
+  renderBoard(room);
+  renderTimer(room);
+  renderWinner(room);
+  renderConfirm(room, amDrawer);
+}
+
+function renderPlayers(room, amDrawer) {
+  els.players.innerHTML = '';
+  room.players.forEach(player => {
+    const li = document.createElement('li');
+    li.className = player.id === state.me.id ? 'active' : '';
+    li.innerHTML = `<strong>${player.name}</strong><div class="muted">${player.role === 'drawer' ? 'рисует' : 'угадывает'}</div>`;
+    els.players.appendChild(li);
+  });
+  els.board.style.pointerEvents = amDrawer && room.round.status === 'active' ? 'auto' : 'none';
+}
+
+function renderChat(room) {
+  els.chat.innerHTML = '';
+  room.chat.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `chat-message ${msg.kind}`;
+    div.innerHTML = `<div class="meta">${msg.player || 'Система'} · ${new Date(msg.createdAt).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}</div><div>${escapeHTML(msg.text)}</div>`;
+    els.chat.appendChild(div);
+  });
+  els.chat.scrollTop = els.chat.scrollHeight;
+}
+
+function renderBoard(room) {
+  initBoard();
+  room.strokes.forEach(drawStroke);
+}
+
+function renderTimer(room) {
+  const update = () => {
+    if (room.round.status !== 'active' || !room.round.endsAt) { els.timer.textContent = '--:--'; return; }
+    const left = Math.max(0, Math.floor((new Date(room.round.endsAt) - new Date()) / 1000));
+    const m = String(Math.floor(left / 60)).padStart(2, '0');
+    const s = String(left % 60).padStart(2, '0');
+    els.timer.textContent = `${m}:${s}`;
+  };
+  update();
+  clearInterval(renderTimer.timer);
+  renderTimer.timer = setInterval(update, 1000);
+}
+
+function renderWinner(room) {
+  const text = room.lastWinner
+    ? `Последний красавчик: ${room.lastWinner}${room.lastWinningGuess ? ` — «${room.lastWinningGuess}»` : ''}`
+    : '';
+  els.winnerBox.classList.toggle('hidden', !text);
+  els.winnerBox.textContent = text;
+}
+
+function renderConfirm(room, amDrawer) {
+  const options = room.players.filter(p => p.id !== state.me.id).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  els.confirmPlayer.innerHTML = options;
+  els.confirmBox.classList.toggle('hidden', !(amDrawer && room.round.status === 'active' && room.players.length > 1));
+}
+
+function drawStroke(stroke) {
+  if (!stroke.points?.length) return;
+  ctx.beginPath();
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = stroke.width * 2.5;
+  const first = denorm(stroke.points[0]);
+  ctx.moveTo(first.x, first.y);
+  stroke.points.slice(1).forEach(p => {
+    const q = denorm(p);
+    ctx.lineTo(q.x, q.y);
+  });
+  if (stroke.points.length === 1) ctx.lineTo(first.x + 0.1, first.y + 0.1);
+  ctx.stroke();
+}
+
+function denorm(point) {
+  return { x: point.x * els.board.width, y: point.y * els.board.height };
+}
+
+function pos(event) {
+  const rect = els.board.getBoundingClientRect();
+  const p = event.touches ? event.touches[0] : event;
+  return { x: (p.clientX - rect.left) / rect.width, y: (p.clientY - rect.top) / rect.height };
+}
+
+function startDraw(e) {
+  if (els.board.style.pointerEvents === 'none') return;
+  state.drawing = true;
+  state.currentPoints = [pos(e)];
   e.preventDefault();
-  const fd = new FormData(form);
-  fd.set('sketchDataUrl', canvas.toDataURL('image/png'));
-
-  const submit = form.querySelector('button[type="submit"]');
-  submit.disabled = true;
-  submit.textContent = 'Шаманю...';
-
+}
+function moveDraw(e) {
+  if (!state.drawing) return;
+  state.currentPoints.push(pos(e));
+  drawStroke({ color: els.color.value, width: Number(els.size.value), points: state.currentPoints.slice(-2) });
+  e.preventDefault();
+}
+async function stopDraw() {
+  if (!state.drawing) return;
+  state.drawing = false;
+  const points = state.currentPoints.slice();
+  state.currentPoints = [];
+  if (!points.length) return;
+  const hash = JSON.stringify(points);
+  if (hash === state.postedStrokeHash) return;
+  state.postedStrokeHash = hash;
   try {
-    const res = await fetch('/api/render', { method: 'POST', body: fd });
-    if (!res.ok) {
-      throw new Error(await res.text());
-    }
-    const data = await res.json();
-    resultImage.src = data.outputUrl;
-    resultImage.hidden = false;
-    resultEmpty.hidden = true;
-    resultJSON.hidden = false;
-    resultJSON.textContent = JSON.stringify(data, null, 2);
-    jobMeta.textContent = `job ${data.id} · ${data.provider}`;
+    await api(`/api/rooms/${state.room.code}/stroke`, { playerId: state.me.id, color: els.color.value, width: Number(els.size.value), points });
   } catch (err) {
     alert(err.message || String(err));
-  } finally {
-    submit.disabled = false;
-    submit.textContent = 'Зашаманить картинку';
   }
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+}
+
+els.createRoom.addEventListener('click', () => createRoom().catch(showErr));
+els.joinRoom.addEventListener('click', () => joinRoom().catch(showErr));
+els.startRound.addEventListener('click', async () => {
+  try { await api(`/api/rooms/${state.room.code}/start`, { playerId: state.me.id }); } catch (err) { showErr(err); }
 });
+els.chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api(`/api/rooms/${state.room.code}/guess`, { playerId: state.me.id, text: els.chatInput.value.trim() });
+    els.chatInput.value = '';
+  } catch (err) { showErr(err); }
+});
+els.confirmGuess.addEventListener('click', async () => {
+  try {
+    await api(`/api/rooms/${state.room.code}/confirm`, { playerId: state.me.id, winnerId: els.confirmPlayer.value });
+  } catch (err) { showErr(err); }
+});
+els.copyLink.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(window.location.origin + `/room/${state.room.code}`); } catch {}
+});
+els.clearLocal.addEventListener('click', renderBoard.bind(null, state.room || { strokes: [] }));
+['mousedown', 'touchstart'].forEach(ev => els.board.addEventListener(ev, startDraw, { passive: false }));
+['mousemove', 'touchmove'].forEach(ev => els.board.addEventListener(ev, moveDraw, { passive: false }));
+['mouseup', 'mouseleave', 'touchend'].forEach(ev => els.board.addEventListener(ev, stopDraw));
+
+function showErr(err) { alert(err.message || String(err)); }
+
+(function boot() {
+  initBoard();
+  const code = (document.body.dataset.roomCode || '').trim().toUpperCase();
+  if (code) {
+    els.joinCode.value = code;
+    const existing = loadSession(code);
+    if (existing?.player) {
+      state.me = existing.player;
+      fetch(`/api/rooms/${code}?playerId=${state.me.id}`)
+        .then(async res => { if (!res.ok) throw new Error(await res.text()); return res.json(); })
+        .then(room => enterRoom(room, state.me, false))
+        .catch(() => {});
+    }
+  }
+})();

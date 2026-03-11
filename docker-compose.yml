@@ -5,14 +5,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      APP_NAME: "Мишаня шаманит"
-      APP_DOMAIN: "miha.vovengo.com"
-      PUBLIC_BASE_URL: "http://localhost:8080"
-      GEN_PROVIDER: "${GEN_PROVIDER:-mock}"
-      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      OPENAI_IMAGE_MODEL: "${OPENAI_IMAGE_MODEL:-gpt-image-1}"
-      OPENAI_IMAGE_SIZE: "${OPENAI_IMAGE_SIZE:-1024x1024}"
-    volumes:
-      - ./data:/app/data
+      APP_NAME: "${APP_NAME:-Мишаня шаманит}"
+      APP_DOMAIN: "${APP_DOMAIN:-miha.vovengo.com}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8080}"
+      ROUND_DURATION_SECONDS: "${ROUND_DURATION_SECONDS:-90}"
+      ROOM_CODE_LENGTH: "${ROOM_CODE_LENGTH:-6}"
+      MAX_CHAT_MESSAGES: "${MAX_CHAT_MESSAGES:-80}"
+      MAX_BODY_BYTES: "${MAX_BODY_BYTES:-1048576}"
     restart: unless-stopped
