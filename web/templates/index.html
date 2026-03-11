@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.AppName}}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">miha.vovengo.com · absurd cyberpunk village lab</p>
+        <h1>{{.AppName}}</h1>
+        <p class="lead">Рисуешь каракулю, докидываешь текстовый промпт, а сервис пытается превратить это в сияющую кибердеревню с неоном, грязью, проводами и шаманским угаром.</p>
+      </div>
+      <div class="status-card">
+        <div><strong>Провайдер:</strong> {{.Provider}}</div>
+        <div><strong>Домен:</strong> {{.Domain}}</div>
+        <div><strong>База:</strong> {{.PublicURL}}</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Набросок</h2>
+        <canvas id="sketch" width="768" height="768"></canvas>
+        <div class="tools">
+          <label>Цвет <input type="color" id="color" value="#00ffd0"></label>
+          <label>Кисть <input type="range" id="size" min="1" max="32" value="6"></label>
+          <button id="clear" type="button">Очистить</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Шаманский пульт</h2>
+        <form id="render-form">
+          <label>
+            <span>Что дорисовать/зашаманить</span>
+            <textarea name="prompt" id="prompt" rows="8" placeholder="Например: дед на кибер-тракторе, антенны из берёзы, неоновые гуси, летающий самовар-дрон..."></textarea>
+          </label>
+          <label>
+            <span>Референс-картинка (необязательно)</span>
+            <input type="file" name="reference" id="reference" accept="image/*">
+          </label>
+          <button class="primary" type="submit">Зашаманить картинку</button>
+        </form>
+        <p class="hint">Сейчас UI уже рабочий. В mock-режиме результат — стилизованная заглушка с наложением твоего скетча. Для настоящей генерации нужен API-провайдер.</p>
+      </div>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="result-head">
+        <h2>Результат</h2>
+        <div id="job-meta"></div>
+      </div>
+      <div id="result-empty" class="empty">Тут появится итоговая картинка.</div>
+      <img id="result-image" alt="Результат генерации" hidden>
+      <pre id="result-json" hidden></pre>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
