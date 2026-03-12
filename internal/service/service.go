@@ -448,7 +448,12 @@ func (a *App) watchRound(code string, roundNumber int, endsAt time.Time) {
 func cloneRoomForPlayer(room *Room, viewerID string) *Room {
 	copyRoom := *room
 	copyRoom.Chat = append([]ChatMessage{}, room.Chat...)
-	copyRoom.Strokes = append([]Stroke{}, room.Strokes...)
+	copyRoom.Strokes = make([]Stroke, 0, len(room.Strokes))
+	for _, stroke := range room.Strokes {
+		clone := stroke
+		clone.Points = append([]StrokePoint{}, stroke.Points...)
+		copyRoom.Strokes = append(copyRoom.Strokes, clone)
+	}
 	copyRoom.Players = make([]*Player, 0, len(room.Players))
 	for _, p := range room.Players {
 		clone := *p

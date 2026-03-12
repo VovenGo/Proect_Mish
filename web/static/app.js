@@ -12,6 +12,8 @@ const state = {
   drawing: false,
   currentPoints: [],
   postedStrokeHash: '',
+  lastRoundNumber: 0,
+  clearPending: false,
 };
 
 const els = {
@@ -124,12 +126,28 @@ function connectEvents() {
   });
 }
 
+function resetTransientDrawing() {
+  state.drawing = false;
+  state.currentPoints = [];
+  state.postedStrokeHash = '';
+}
+
 function render(room) {
   room = room || {};
   room.players = Array.isArray(room.players) ? room.players : [];
   room.chat = Array.isArray(room.chat) ? room.chat : [];
   room.strokes = Array.isArray(room.strokes) ? room.strokes : [];
   room.round = room.round || {};
+
+  if ((room.round.number || 0) !== state.lastRoundNumber) {
+    resetTransientDrawing();
+    state.lastRoundNumber = room.round.number || 0;
+    state.clearPending = false;
+  }
+  if (room.strokes.length === 0) {
+    resetTransientDrawing();
+    state.clearPending = false;
+  }
 
   els.roomCode.textContent = room.code || '—';
   els.roundTitle.textContent = room.round.status === 'active'
@@ -148,7 +166,8 @@ function render(room) {
   els.phraseSecretWrap.classList.toggle('hidden', !canSeeSecretPhrase);
   const amDrawer = amCurrentDrawer || room.players.find(p => p.id === myId)?.role === 'drawer';
   els.startRound.disabled = !amDrawer || room.players.length < 2 || room.round.status === 'active';
-  els.clearCanvas.disabled = !amDrawer || room.round.status !== 'active';
+  els.clearCanvas.disabled = state.clearPending || !amDrawer || room.round.status !== 'active';
+  els.clearCanvas.textContent = state.clearPending ? 'Очищаем...' : 'Очистить холст';
 
   renderPlayers(room, amDrawer);
   renderChat(room);
@@ -255,7 +274,7 @@ async function stopDraw() {
   state.drawing = false;
   const points = state.currentPoints.slice();
   state.currentPoints = [];
-  if (!points.length) return;
+  if (state.clearPending || !points.length) return;
   const hash = JSON.stringify(points);
   if (hash === state.postedStrokeHash) return;
   state.postedStrokeHash = hash;
@@ -288,7 +307,17 @@ els.startRound.addEventListener('click', async () => {
   try { await api(`/api/rooms/${state.room.code}/start`, { playerId: state.me.id }); } catch (err) { showErr(err); }
 });
 els.clearCanvas.addEventListener('click', async () => {
-  try { await api(`/api/rooms/${state.room.code}/clear`, { playerId: state.me.id }); } catch (err) { showErr(err); }
+  if (state.clearPending) return;
+  state.clearPending = true;
+  resetTransientDrawing();
+  render({ ...state.room, strokes: [] });
+  try {
+    await api(`/api/rooms/${state.room.code}/clear`, { playerId: state.me.id });
+  } catch (err) {
+    state.clearPending = false;
+    render(state.room);
+    showErr(err);
+  }
 });
 els.chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
