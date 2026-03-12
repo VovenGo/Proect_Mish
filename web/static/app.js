@@ -53,8 +53,7 @@ ctx.lineCap = 'round';
 ctx.lineJoin = 'round';
 
 function initBoard() {
-  ctx.fillStyle = '#10111a';
-  ctx.fillRect(0, 0, els.board.width, els.board.height);
+  ctx.clearRect(0, 0, els.board.width, els.board.height);
 }
 
 function api(path, body) {

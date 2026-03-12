@@ -46,9 +46,21 @@ button { cursor:pointer; }
 button.primary { background: linear-gradient(90deg, var(--accent), #70ffd6); color:#04110d; font-weight:700; }
 .hidden { display:none !important; }
 .board-head, .tools, .room-actions { display:flex; gap:16px; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+.board-surface {
+  width: 100%;
+  margin-top: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.08);
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(70, 44, 20, 0.18), rgba(70, 44, 20, 0.18)),
+    url('/static/images/board-burlap.webp') center/cover no-repeat;
+}
 #board {
-  width:100%; height:auto; margin-top:16px; border-radius:20px; border:1px solid rgba(255,255,255,.08);
-  background:#10111a; touch-action:none;
+  display:block;
+  width:100%; height:auto;
+  background: transparent;
+  touch-action:none;
 }
 .timer { font-size: 32px; font-weight: 800; color: var(--warn); }
 .phrase-card, .winner-box { margin-top: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.03); }
