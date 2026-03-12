@@ -5,13 +5,15 @@ const BRUSH_SIZES = {
   xl: 20,
 };
 
+const MAX_STROKE_POINTS = 48;
+
 const state = {
   me: null,
   room: null,
   eventSource: null,
   drawing: false,
   currentPoints: [],
-  postedStrokeHash: '',
+  strokeFlushPromise: Promise.resolve(),
   lastRoundNumber: 0,
   clearPending: false,
 };
@@ -128,7 +130,7 @@ function connectEvents() {
 function resetTransientDrawing() {
   state.drawing = false;
   state.currentPoints = [];
-  state.postedStrokeHash = '';
+  state.strokeFlushPromise = Promise.resolve();
 }
 
 function render(room) {
@@ -256,6 +258,22 @@ function pos(event) {
   return { x: (p.clientX - rect.left) / rect.width, y: (p.clientY - rect.top) / rect.height };
 }
 
+function queueStrokeChunk(points) {
+  if (state.clearPending || !points?.length) return Promise.resolve();
+  const payload = {
+    playerId: state.me.id,
+    color: els.color.value,
+    width: Number(els.size.value),
+    points,
+  };
+  state.strokeFlushPromise = state.strokeFlushPromise
+    .then(() => api(`/api/rooms/${state.room.code}/stroke`, payload))
+    .catch((err) => {
+      alert(err.message || String(err));
+    });
+  return state.strokeFlushPromise;
+}
+
 function startDraw(e) {
   if (els.board.style.pointerEvents === 'none') return;
   state.drawing = true;
@@ -264,8 +282,14 @@ function startDraw(e) {
 }
 function moveDraw(e) {
   if (!state.drawing) return;
-  state.currentPoints.push(pos(e));
+  const point = pos(e);
+  state.currentPoints.push(point);
   drawStroke({ color: els.color.value, width: Number(els.size.value), points: state.currentPoints.slice(-2) });
+  if (state.currentPoints.length >= MAX_STROKE_POINTS) {
+    const chunk = state.currentPoints.slice();
+    state.currentPoints = state.currentPoints.slice(-1);
+    queueStrokeChunk(chunk);
+  }
   e.preventDefault();
 }
 async function stopDraw() {
@@ -274,14 +298,7 @@ async function stopDraw() {
   const points = state.currentPoints.slice();
   state.currentPoints = [];
   if (state.clearPending || !points.length) return;
-  const hash = JSON.stringify(points);
-  if (hash === state.postedStrokeHash) return;
-  state.postedStrokeHash = hash;
-  try {
-    await api(`/api/rooms/${state.room.code}/stroke`, { playerId: state.me.id, color: els.color.value, width: Number(els.size.value), points });
-  } catch (err) {
-    alert(err.message || String(err));
-  }
+  await queueStrokeChunk(points);
 }
 
 function setBrushSize(value) {
