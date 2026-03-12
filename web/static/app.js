@@ -119,7 +119,13 @@ function connectEvents() {
 }
 
 function render(room) {
-  els.roomCode.textContent = room.code;
+  room = room || {};
+  room.players = Array.isArray(room.players) ? room.players : [];
+  room.chat = Array.isArray(room.chat) ? room.chat : [];
+  room.strokes = Array.isArray(room.strokes) ? room.strokes : [];
+  room.round = room.round || {};
+
+  els.roomCode.textContent = room.code || '—';
   els.roundTitle.textContent = room.round.status === 'active'
     ? `Раунд ${room.round.number}: рисует ${room.round.drawerName}`
     : room.round.status === 'guessed'
@@ -129,7 +135,8 @@ function render(room) {
         : 'Ждём старт нового шаманства';
 
   els.phraseMasked.textContent = room.round.phraseMasked || '—';
-  const amDrawer = room.round.drawerId === state.me.id || room.players.find(p => p.id === state.me.id)?.role === 'drawer';
+  const myId = state.me?.id;
+  const amDrawer = room.round.drawerId === myId || room.players.find(p => p.id === myId)?.role === 'drawer';
   els.phraseSecretWrap.classList.toggle('hidden', !amDrawer || !room.round.phraseForDrawer);
   els.phraseSecret.textContent = room.round.phraseForDrawer || '';
   els.startRound.disabled = !amDrawer || room.players.length < 2 || room.round.status === 'active';
@@ -146,7 +153,7 @@ function render(room) {
 
 function renderPlayers(room, amDrawer) {
   els.players.innerHTML = '';
-  room.players.forEach(player => {
+  (room.players || []).forEach(player => {
     const li = document.createElement('li');
     li.className = player.id === state.me.id ? 'active' : '';
     li.innerHTML = `<strong>${player.name}</strong><div class="muted">${player.role === 'drawer' ? 'рисует' : 'угадывает'}</div>`;
@@ -193,7 +200,7 @@ function renderWinner(room) {
 }
 
 function renderConfirm(room, amDrawer) {
-  const options = room.players.filter(p => p.id !== state.me.id).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  const options = (room.players || []).filter(p => p.id !== state.me?.id).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   els.confirmPlayer.innerHTML = options;
   els.confirmBox.classList.toggle('hidden', !(amDrawer && room.round.status === 'active' && room.players.length > 1));
 }
