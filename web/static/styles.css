@@ -20,8 +20,7 @@ body {
     linear-gradient(180deg, #05060a, #111522 60%, #08090d);
 }
 body[data-view-mode="game"] #lobby { display:none !important; }
-body[data-view-mode="room"] #lobby .panel:first-child { display:none !important; }
-body[data-view-mode="room"] #lobby .lobby-grid > :first-child { display:none !important; }
+body[data-view-mode="room"] #lobby-grid { display:none !important; }
 .page { max-width: 1460px; margin: 0 auto; padding: 24px; }
 .panel, .status-card {
   background: var(--panel);
