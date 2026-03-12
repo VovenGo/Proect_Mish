@@ -163,6 +163,18 @@ func (h *Handler) roomAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.writeJSON(w, http.StatusOK, room)
+	case "clear":
+		var in service.ClearCanvasInput
+		if !h.decodeJSON(w, r, &in) {
+			return
+		}
+		in.Code = code
+		room, err := h.app.ClearCanvas(r.Context(), in)
+		if err != nil {
+			h.badRequest(w, err)
+			return
+		}
+		h.writeJSON(w, http.StatusOK, room)
 	default:
 		http.NotFound(w, r)
 	}

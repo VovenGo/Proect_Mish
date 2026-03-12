@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	mrand "math/rand"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +33,7 @@ type Room struct {
 	LastWinner       string        `json:"lastWinner,omitempty"`
 	LastWinningGuess string        `json:"lastWinningGuess,omitempty"`
 	Version          int64         `json:"version"`
-	watchers         map[chan RoomSnapshot]struct{}
+	watchers         map[chan RoomSnapshot]string
 }
 
 type Player struct {
@@ -118,6 +117,11 @@ type AddStrokeInput struct {
 	Points   []StrokePoint `json:"points"`
 }
 
+type ClearCanvasInput struct {
+	Code     string `json:"code"`
+	PlayerID string `json:"playerId"`
+}
+
 type RoomAccess struct {
 	Room   *Room   `json:"room"`
 	Player *Player `json:"player"`
@@ -138,7 +142,7 @@ func (a *App) CreateRoom(ctx context.Context, in CreateRoomInput) (RoomAccess, e
 	defer a.mu.Unlock()
 	code := a.uniqueCodeLocked()
 	player := &Player{ID: newID(), Name: name, Role: "drawer", Connected: true, JoinedAt: time.Now().UTC(), LastSeenAt: time.Now().UTC()}
-	room := &Room{Code: code, ShareURL: strings.TrimRight(a.cfg.PublicBaseURL, "/") + "/room/" + code, Players: []*Player{player}, Chat: []ChatMessage{}, Strokes: []Stroke{}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), watchers: map[chan RoomSnapshot]struct{}{}, Round: RoundState{Status: "waiting", PhraseMasked: "Ждём второго шамана, укуси меня пчела."}}
+	room := &Room{Code: code, ShareURL: strings.TrimRight(a.cfg.PublicBaseURL, "/") + "/room/" + code, Players: []*Player{player}, Chat: []ChatMessage{}, Strokes: []Stroke{}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(), watchers: map[chan RoomSnapshot]string{}, Round: RoundState{Status: "waiting", PhraseMasked: "Ждём второго шамана, укуси меня пчела."}}
 	room.Version = 1
 	a.rooms[code] = room
 	a.broadcastLocked(room)
@@ -197,7 +201,7 @@ func (a *App) StartRound(ctx context.Context, in StartRoundInput) (*Room, error)
 		return nil, errors.New("only drawer can start the round")
 	}
 	phrase := a.phrases[mrand.Intn(len(a.phrases))]
-	room.Strokes = nil
+	room.Strokes = []Stroke{}
 	room.Round = RoundState{Status: "active", Number: room.Round.Number + 1, DrawerID: player.ID, DrawerName: player.Name, PhraseMasked: maskPhrase(phrase), PhraseForDrawer: phrase, StartedAt: time.Now().UTC(), EndsAt: time.Now().UTC().Add(time.Duration(a.cfg.RoundDuration) * time.Second)}
 	room.LastWinner = ""
 	room.LastWinningGuess = ""
@@ -298,6 +302,27 @@ func (a *App) AddStroke(ctx context.Context, in AddStrokeInput) (*Room, error) {
 	return cloneRoomForPlayer(room, in.PlayerID), nil
 }
 
+func (a *App) ClearCanvas(ctx context.Context, in ClearCanvasInput) (*Room, error) {
+	_ = ctx
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	room, player, err := a.roomAndPlayerLocked(in.Code, in.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	if room.Round.Status != "active" {
+		return nil, errors.New("no active round")
+	}
+	if room.Round.DrawerID != player.ID {
+		return nil, errors.New("only drawer can clear the canvas")
+	}
+	room.Strokes = []Stroke{}
+	room.UpdatedAt = time.Now().UTC()
+	room.Version++
+	a.broadcastLocked(room)
+	return cloneRoomForPlayer(room, in.PlayerID), nil
+}
+
 func (a *App) Subscribe(ctx context.Context, code, viewerID string) (<-chan RoomSnapshot, func(), error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -306,7 +331,7 @@ func (a *App) Subscribe(ctx context.Context, code, viewerID string) (<-chan Room
 		return nil, nil, errors.New("room not found")
 	}
 	ch := make(chan RoomSnapshot, 8)
-	room.watchers[ch] = struct{}{}
+	room.watchers[ch] = viewerID
 	ch <- RoomSnapshot{Room: cloneRoomForPlayer(room, viewerID), ViewerID: viewerID}
 	cancel := func() {
 		a.mu.Lock()
@@ -392,11 +417,9 @@ func (a *App) uniqueCodeLocked() string {
 
 func (a *App) broadcastLocked(room *Room) {
 	room.Version++
-	snapshotPlayers := append([]*Player(nil), room.Players...)
-	sort.Slice(snapshotPlayers, func(i, j int) bool { return snapshotPlayers[i].JoinedAt.Before(snapshotPlayers[j].JoinedAt) })
-	for ch := range room.watchers {
+	for ch, viewerID := range room.watchers {
 		select {
-		case ch <- RoomSnapshot{Room: cloneRoomForPlayer(room, ""), ViewerID: ""}:
+		case ch <- RoomSnapshot{Room: cloneRoomForPlayer(room, viewerID), ViewerID: viewerID}:
 		default:
 		}
 	}
@@ -421,8 +444,8 @@ func (a *App) watchRound(code string, roundNumber int, endsAt time.Time) {
 
 func cloneRoomForPlayer(room *Room, viewerID string) *Room {
 	copyRoom := *room
-	copyRoom.Chat = append([]ChatMessage(nil), room.Chat...)
-	copyRoom.Strokes = append([]Stroke(nil), room.Strokes...)
+	copyRoom.Chat = append([]ChatMessage{}, room.Chat...)
+	copyRoom.Strokes = append([]Stroke{}, room.Strokes...)
 	copyRoom.Players = make([]*Player, 0, len(room.Players))
 	for _, p := range room.Players {
 		clone := *p

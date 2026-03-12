@@ -1,3 +1,10 @@
+const BRUSH_SIZES = {
+  small: 2,
+  medium: 6,
+  large: 12,
+  xl: 20,
+};
+
 const state = {
   me: null,
   room: null,
@@ -8,6 +15,7 @@ const state = {
 };
 
 const els = {
+  lobby: document.getElementById('lobby'),
   createName: document.getElementById('create-name'),
   createRoom: document.getElementById('create-room'),
   joinCode: document.getElementById('join-code'),
@@ -20,7 +28,8 @@ const els = {
   board: document.getElementById('board'),
   color: document.getElementById('color'),
   size: document.getElementById('size'),
-  clearLocal: document.getElementById('clear-local'),
+  brushSizeButtons: Array.from(document.querySelectorAll('[data-brush-size]')),
+  clearCanvas: document.getElementById('clear-canvas'),
   startRound: document.getElementById('start-round'),
   phraseMasked: document.getElementById('phrase-masked'),
   phraseSecretWrap: document.getElementById('phrase-secret-wrap'),
@@ -92,6 +101,7 @@ function enterRoom(room, player, pushHistory) {
   state.me = player;
   saveSession();
   if (pushHistory) history.pushState({}, '', `/room/${room.code}`);
+  els.lobby?.classList.add('hidden');
   els.game.classList.remove('hidden');
   connectEvents();
   render(room);
@@ -123,6 +133,7 @@ function render(room) {
   els.phraseSecretWrap.classList.toggle('hidden', !amDrawer || !room.round.phraseForDrawer);
   els.phraseSecret.textContent = room.round.phraseForDrawer || '';
   els.startRound.disabled = !amDrawer || room.players.length < 2 || room.round.status === 'active';
+  els.clearCanvas.disabled = !amDrawer || room.round.status !== 'active';
 
   renderPlayers(room, amDrawer);
   renderChat(room);
@@ -130,6 +141,7 @@ function render(room) {
   renderTimer(room);
   renderWinner(room);
   renderConfirm(room, amDrawer);
+  syncBrushButtons();
 }
 
 function renderPlayers(room, amDrawer) {
@@ -145,7 +157,7 @@ function renderPlayers(room, amDrawer) {
 
 function renderChat(room) {
   els.chat.innerHTML = '';
-  room.chat.forEach(msg => {
+  (room.chat || []).forEach(msg => {
     const div = document.createElement('div');
     div.className = `chat-message ${msg.kind}`;
     div.innerHTML = `<div class="meta">${msg.player || 'Система'} · ${new Date(msg.createdAt).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'})}</div><div>${escapeHTML(msg.text)}</div>`;
@@ -156,7 +168,7 @@ function renderChat(room) {
 
 function renderBoard(room) {
   initBoard();
-  room.strokes.forEach(drawStroke);
+  (room.strokes || []).forEach(drawStroke);
 }
 
 function renderTimer(room) {
@@ -239,6 +251,18 @@ async function stopDraw() {
   }
 }
 
+function setBrushSize(value) {
+  els.size.value = String(value);
+  syncBrushButtons();
+}
+
+function syncBrushButtons() {
+  const current = Number(els.size.value);
+  els.brushSizeButtons.forEach(button => {
+    button.classList.toggle('active', Number(button.dataset.brushSizeValue) === current);
+  });
+}
+
 function escapeHTML(str) {
   return str.replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
 }
@@ -247,6 +271,9 @@ els.createRoom.addEventListener('click', () => createRoom().catch(showErr));
 els.joinRoom.addEventListener('click', () => joinRoom().catch(showErr));
 els.startRound.addEventListener('click', async () => {
   try { await api(`/api/rooms/${state.room.code}/start`, { playerId: state.me.id }); } catch (err) { showErr(err); }
+});
+els.clearCanvas.addEventListener('click', async () => {
+  try { await api(`/api/rooms/${state.room.code}/clear`, { playerId: state.me.id }); } catch (err) { showErr(err); }
 });
 els.chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -263,7 +290,9 @@ els.confirmGuess.addEventListener('click', async () => {
 els.copyLink.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(window.location.origin + `/room/${state.room.code}`); } catch {}
 });
-els.clearLocal.addEventListener('click', renderBoard.bind(null, state.room || { strokes: [] }));
+els.brushSizeButtons.forEach(button => {
+  button.addEventListener('click', () => setBrushSize(button.dataset.brushSizeValue));
+});
 ['mousedown', 'touchstart'].forEach(ev => els.board.addEventListener(ev, startDraw, { passive: false }));
 ['mousemove', 'touchmove'].forEach(ev => els.board.addEventListener(ev, moveDraw, { passive: false }));
 ['mouseup', 'mouseleave', 'touchend'].forEach(ev => els.board.addEventListener(ev, stopDraw));
@@ -272,6 +301,7 @@ function showErr(err) { alert(err.message || String(err)); }
 
 (function boot() {
   initBoard();
+  setBrushSize(BRUSH_SIZES.medium);
   const code = (document.body.dataset.roomCode || '').trim().toUpperCase();
   if (code) {
     els.joinCode.value = code;

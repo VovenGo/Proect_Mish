@@ -59,6 +59,10 @@ button.primary { background: linear-gradient(90deg, var(--accent), #70ffd6); col
 .chat-message.guess { border-left: 3px solid var(--warn); }
 .chat-message .meta { color: var(--muted); font-size:12px; margin-bottom:4px; }
 .chat-form, .confirm-box { display:grid; gap:12px; margin-top:16px; }
+.brush-size-control { min-width: 240px; }
+.brush-size-buttons { display:flex; gap:8px; flex-wrap:wrap; }
+.brush-size-buttons button { width:auto; }
+.brush-size-buttons button.active { border-color: var(--accent); }
 @media (max-width: 980px) {
   .hero, .lobby-grid, .game-grid { grid-template-columns: 1fr; }
   .page { padding: 16px; }

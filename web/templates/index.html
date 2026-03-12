@@ -8,31 +8,33 @@
 </head>
 <body data-room-code="{{.RoomCode}}">
   <main class="page">
-    <section class="hero panel">
-      <div>
-        <p class="eyebrow">absurd cyberpunk village realtime guessing hut</p>
-        <h1>{{.AppName}}</h1>
-        <p class="lead">Один рисует дичь уровня «дед кибер-пасечник на дроновом тракторе», остальные глядят в реальном времени и угадывают в чате. Комната живёт по ссылке, время тикает, а победителя подтверждает сам рисовальщик.</p>
-      </div>
-      <div class="status-card">
-        <div><strong>Домен:</strong> {{.Domain}}</div>
-        <div><strong>База:</strong> {{.PublicURL}}</div>
-        <div><strong>Формат:</strong> room-by-link · live canvas · chat</div>
-      </div>
-    </section>
+    <section id="lobby">
+      <section class="hero panel">
+        <div>
+          <p class="eyebrow">absurd cyberpunk village realtime guessing hut</p>
+          <h1>{{.AppName}}</h1>
+          <p class="lead">Один рисует дичь уровня «дед кибер-пасечник на дроновом тракторе», остальные глядят в реальном времени и угадывают в чате. Комната живёт по ссылке, время тикает, а победителя подтверждает сам рисовальщик.</p>
+        </div>
+        <div class="status-card">
+          <div><strong>Домен:</strong> {{.Domain}}</div>
+          <div><strong>База:</strong> {{.PublicURL}}</div>
+          <div><strong>Формат:</strong> room-by-link · live canvas · chat</div>
+        </div>
+      </section>
 
-    <section class="lobby-grid">
-      <div class="panel">
-        <h2>Создать избу</h2>
-        <label><span>Как тебя звать</span><input id="create-name" maxlength="24" placeholder="Михалыч"></label>
-        <button class="primary" id="create-room">Поднять комнату</button>
-      </div>
-      <div class="panel">
-        <h2>Зайти по коду</h2>
-        <label><span>Код комнаты</span><input id="join-code" maxlength="10" placeholder="AB12CD" value="{{.RoomCode}}"></label>
-        <label><span>Как тебя звать</span><input id="join-name" maxlength="24" placeholder="Рыжий шаман"></label>
-        <button id="join-room">Ввалиться в катку</button>
-      </div>
+      <section class="lobby-grid">
+        <div class="panel">
+          <h2>Создать избу</h2>
+          <label><span>Как тебя звать</span><input id="create-name" maxlength="24" placeholder="Михалыч"></label>
+          <button class="primary" id="create-room">Поднять комнату</button>
+        </div>
+        <div class="panel">
+          <h2>Зайти по коду</h2>
+          <label><span>Код комнаты</span><input id="join-code" maxlength="10" placeholder="AB12CD" value="{{.RoomCode}}"></label>
+          <label><span>Как тебя звать</span><input id="join-name" maxlength="24" placeholder="Рыжий шаман"></label>
+          <button id="join-room">Ввалиться в катку</button>
+        </div>
+      </section>
     </section>
 
     <section id="game" class="game-grid hidden">
@@ -47,8 +49,17 @@
         <canvas id="board" width="900" height="600"></canvas>
         <div class="tools">
           <label>Цвет <input type="color" id="color" value="#00ffd0"></label>
-          <label>Кисть <input type="range" id="size" min="1" max="24" value="6"></label>
-          <button id="clear-local" type="button">Очистить локально</button>
+          <label class="brush-size-control">
+            <span>Кисть</span>
+            <div class="brush-size-buttons">
+              <button type="button" data-brush-size data-brush-size-value="2">small</button>
+              <button type="button" data-brush-size data-brush-size-value="6">medium</button>
+              <button type="button" data-brush-size data-brush-size-value="12">large</button>
+              <button type="button" data-brush-size data-brush-size-value="20">xl</button>
+            </div>
+            <input type="range" id="size" min="1" max="24" value="6">
+          </label>
+          <button id="clear-canvas" type="button">Очистить холст</button>
           <button class="primary" id="start-round" type="button">Новый раунд</button>
         </div>
         <div class="phrase-card">
