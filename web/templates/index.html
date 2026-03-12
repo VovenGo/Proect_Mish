@@ -6,7 +6,7 @@
   <title>{{.AppName}}</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body data-room-code="{{.RoomCode}}">
+<body data-room-code="{{.RoomCode}}" data-view-mode="{{if .RoomCode}}room{{else}}lobby{{end}}">
   <main class="page">
     <section id="lobby">
       <section class="hero panel">

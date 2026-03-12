@@ -100,7 +100,10 @@ function enterRoom(room, player, pushHistory) {
   state.room = room;
   state.me = player;
   saveSession();
-  if (pushHistory) history.pushState({}, '', `/room/${room.code}`);
+  if (pushHistory || window.location.pathname !== `/room/${room.code}`) {
+    history.pushState({}, '', `/room/${room.code}`);
+  }
+  document.body.dataset.viewMode = 'game';
   els.lobby?.classList.add('hidden');
   els.game.classList.remove('hidden');
   connectEvents();
@@ -136,9 +139,11 @@ function render(room) {
 
   els.phraseMasked.textContent = room.round.phraseMasked || '—';
   const myId = state.me?.id;
-  const amDrawer = room.round.drawerId === myId || room.players.find(p => p.id === myId)?.role === 'drawer';
-  els.phraseSecretWrap.classList.toggle('hidden', !amDrawer || !room.round.phraseForDrawer);
-  els.phraseSecret.textContent = room.round.phraseForDrawer || '';
+  const amCurrentDrawer = room.round.drawerId === myId;
+  const canSeeSecretPhrase = amCurrentDrawer && !!room.round.phraseForDrawer;
+  els.phraseSecret.textContent = canSeeSecretPhrase ? room.round.phraseForDrawer : '';
+  els.phraseSecretWrap.classList.toggle('hidden', !canSeeSecretPhrase);
+  const amDrawer = amCurrentDrawer || room.players.find(p => p.id === myId)?.role === 'drawer';
   els.startRound.disabled = !amDrawer || room.players.length < 2 || room.round.status === 'active';
   els.clearCanvas.disabled = !amDrawer || room.round.status !== 'active';
 

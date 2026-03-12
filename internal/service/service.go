@@ -272,7 +272,7 @@ func (a *App) ConfirmGuess(ctx context.Context, in ConfirmGuessInput) (*Room, er
 	a.rotateDrawerLocked(room, winner.ID)
 	room.UpdatedAt = time.Now().UTC()
 	room.Version++
-	a.addSystemMessageLocked(room, fmt.Sprintf("%s угадал. Фраза была: «%s».", winner.Name, room.Round.PhraseForDrawer))
+	a.addSystemMessageLocked(room, fmt.Sprintf("%s угадал. Раунд закрыт, можно заводить новый.", winner.Name))
 	a.broadcastLocked(room)
 	return cloneRoomForPlayer(room, in.PlayerID), nil
 }
@@ -333,13 +333,16 @@ func (a *App) Subscribe(ctx context.Context, code, viewerID string) (<-chan Room
 	ch := make(chan RoomSnapshot, 8)
 	room.watchers[ch] = viewerID
 	ch <- RoomSnapshot{Room: cloneRoomForPlayer(room, viewerID), ViewerID: viewerID}
+	var cancelOnce sync.Once
 	cancel := func() {
-		a.mu.Lock()
-		defer a.mu.Unlock()
-		if live := a.rooms[room.Code]; live != nil {
-			delete(live.watchers, ch)
-		}
-		close(ch)
+		cancelOnce.Do(func() {
+			a.mu.Lock()
+			defer a.mu.Unlock()
+			if live := a.rooms[room.Code]; live != nil {
+				delete(live.watchers, ch)
+			}
+			close(ch)
+		})
 	}
 	go func() { <-ctx.Done(); cancel() }()
 	return ch, cancel, nil
@@ -436,7 +439,7 @@ func (a *App) watchRound(code string, roundNumber int, endsAt time.Time) {
 		return
 	}
 	room.Round.Status = "timeout"
-	a.addSystemMessageLocked(room, fmt.Sprintf("Время вышло. Фраза была: «%s».", room.Round.PhraseForDrawer))
+	a.addSystemMessageLocked(room, "Время вышло. Раунд сгорел, заводите новый.")
 	room.UpdatedAt = time.Now().UTC()
 	room.Version++
 	a.broadcastLocked(room)
