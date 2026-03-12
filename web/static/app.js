@@ -21,6 +21,7 @@ const els = {
   joinCode: document.getElementById('join-code'),
   joinName: document.getElementById('join-name'),
   joinRoom: document.getElementById('join-room'),
+  lobbyGrid: document.getElementById('lobby-grid'),
   game: document.getElementById('game'),
   roomCode: document.getElementById('room-code'),
   roundTitle: document.getElementById('round-title'),
@@ -104,6 +105,8 @@ function enterRoom(room, player, pushHistory) {
     history.pushState({}, '', `/room/${room.code}`);
   }
   document.body.dataset.viewMode = 'game';
+  els.lobbyGrid?.classList.add('hidden');
+  els.lobbyGrid?.setAttribute('hidden', 'hidden');
   els.lobby?.classList.add('hidden');
   els.game.classList.remove('hidden');
   connectEvents();
@@ -316,6 +319,9 @@ function showErr(err) { alert(err.message || String(err)); }
   setBrushSize(BRUSH_SIZES.medium);
   const code = (document.body.dataset.roomCode || '').trim().toUpperCase();
   if (code) {
+    document.body.dataset.viewMode = 'room';
+    els.lobbyGrid?.classList.add('hidden');
+    els.lobbyGrid?.setAttribute('hidden', 'hidden');
     els.joinCode.value = code;
     const existing = loadSession(code);
     if (existing?.player) {
